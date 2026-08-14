@@ -18,6 +18,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [imgError, setImgError] = useState(false);
 
   const initials = businessName
     ? businessName
@@ -77,25 +78,29 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     onLogin(userObj);
   };
 
+  // Check if logoUrl is a valid non-empty string
+  const hasValidLogo = Boolean(logoUrl && logoUrl.trim().length > 0 && !imgError);
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Top Header */}
         <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-teal-950 p-6 text-white text-center space-y-2 relative">
-          {logoUrl ? (
+          {hasValidLogo ? (
             <img
               src={logoUrl}
               alt="Logo"
-              className="w-14 h-14 object-contain rounded-2xl bg-white p-1 mx-auto shadow-xl shadow-emerald-950/60 border border-emerald-400/30"
+              onError={() => setImgError(true)} // यदि Logo Load भएन भने Initials देखाउने
+              className="w-16 h-16 object-contain rounded-2xl bg-white p-1 mx-auto shadow-xl shadow-emerald-950/60 border border-emerald-400/30"
             />
           ) : (
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center font-black text-xl mx-auto shadow-xl shadow-emerald-950/60 border border-emerald-400/30">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center font-black text-xl mx-auto shadow-xl shadow-emerald-950/60 border border-emerald-400/30">
               {initials}
             </div>
           )}
           <h2 className="font-extrabold text-lg text-white leading-snug">
-            {businessName}
+            {businessName || 'Business ERP'}
           </h2>
           <p className="text-xs text-slate-300">
             Secure ERP Authorization Portal
