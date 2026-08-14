@@ -1,7 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { AppState, BusinessInfo, Customer, Expense, Product, Purchase, Sale, Supplier, User, UserRole } from './types';
 import { loadAppState, saveAppState } from './utils/storage';
-import { fetchFullStateFromSupabase, subscribeToSupabaseStateChanges, syncStateToSupabase } from './services/supabaseService';
+import { 
+  fetchFullStateFromSupabase, 
+  subscribeToSupabaseStateChanges, 
+  syncStateToSupabase,
+  insertProductToSupabase,
+  updateProductInSupabase,
+  deleteProductFromSupabase,
+  insertCustomerToSupabase,
+  deleteCustomerFromSupabase,
+  insertSaleToSupabase,
+  deleteSaleFromSupabase,
+  insertExpenseToSupabase,
+  deleteExpenseFromSupabase,
+  updateBusinessInfoInSupabase,
+  fetchBusinessInfoFromSupabase
+} from './services/supabaseService';
 import { Header } from './components/Navigation/Header';
 import { Sidebar } from './components/Navigation/Sidebar';
 import { Dashboard } from './components/Dashboard/Dashboard';
@@ -33,11 +48,21 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     async function loadSupabaseData() {
+      // 1. App State sync
       const remoteState = await fetchFullStateFromSupabase();
       if (remoteState && isMounted) {
         setState((prev) => ({
           ...prev,
           ...remoteState,
+        }));
+      }
+
+      // 2. Direct Business Info/Logo Sync (For extra stability)
+      const bInfo = await fetchBusinessInfoFromSupabase();
+      if (bInfo && isMounted) {
+        setState((prev) => ({
+          ...prev,
+          businessInfo: bInfo,
         }));
       }
     }
@@ -66,42 +91,49 @@ export default function App() {
   }, [state]);
 
   // Handlers for Products
-  const handleAddProduct = (product: Product) => {
+  const handleAddProduct = async (product: Product) => {
+    // Local state update
     setState((prev) => ({
       ...prev,
       products: [product, ...prev.products],
     }));
+    // Supabase DB direct update
+    await insertProductToSupabase(product);
   };
 
-  const handleUpdateProduct = (updated: Product) => {
+  const handleUpdateProduct = async (updated: Product) => {
     setState((prev) => ({
       ...prev,
       products: prev.products.map((p) => (p.id === updated.id ? updated : p)),
     }));
+    await updateProductInSupabase(updated);
   };
 
-  const handleDeleteProduct = (id: string) => {
+  const handleDeleteProduct = async (id: string) => {
     setState((prev) => ({
       ...prev,
       products: prev.products.filter((p) => p.id !== id),
     }));
+    await deleteProductFromSupabase(id);
   };
 
   // Handlers for Sales
-  const handleCompleteSale = (sale: Sale) => {
+  const handleCompleteSale = async (sale: Sale) => {
     // 1. Deduct Stock automatically for catalog items
     const updatedProducts = state.products.map((p) => {
       const soldItem = sale.items.find((i) => i.productId === p.id);
       if (soldItem) {
-        return {
+        const updatedProd = {
           ...p,
           stockQuantity: Math.max(0, p.stockQuantity - soldItem.qty),
         };
+        updateProductInSupabase(updatedProd); // Async update
+        return updatedProd;
       }
       return p;
     });
 
-    // 2. Mark old unpaid sales for this customer as merged if previous due was added
+    // 2. Mark old unpaid sales for this customer as merged
     let updatedSales = [...state.sales];
     if (sale.previousDueAdded && sale.previousDueAdded > 0) {
       updatedSales = updatedSales.map((s) => {
@@ -124,7 +156,6 @@ export default function App() {
     // 3. Update Customer Totals & Dues
     const updatedCustomers = state.customers.map((c) => {
       if (c.id === sale.customerId) {
-        // If previous due was merged into this sale, recalculated totalDue is the new sale's dueAmount
         const newTotalDue = sale.previousDueAdded && sale.previousDueAdded > 0
           ? sale.dueAmount
           : c.totalDue + sale.dueAmount;
@@ -139,13 +170,15 @@ export default function App() {
       return c;
     });
 
-    // 4. Update App State
+    // 4. Update App State & Save to Supabase
     setState((prev) => ({
       ...prev,
       sales: [sale, ...updatedSales],
       products: updatedProducts,
       customers: updatedCustomers,
     }));
+
+    await insertSaleToSupabase(sale);
 
     // 5. Open Invoice Modal
     setActiveInvoiceSale(sale);
@@ -154,32 +187,36 @@ export default function App() {
   };
 
   // Handlers for Customers
-  const handleAddCustomer = (customer: Customer) => {
+  const handleAddCustomer = async (customer: Customer) => {
     setState((prev) => ({
       ...prev,
       customers: [...prev.customers, customer],
     }));
+    await insertCustomerToSupabase(customer);
   };
 
-  const handleDeleteCustomer = (customerId: string) => {
+  const handleDeleteCustomer = async (customerId: string) => {
     setState((prev) => ({
       ...prev,
       customers: prev.customers.filter((c) => c.id !== customerId),
     }));
+    await deleteCustomerFromSupabase(customerId);
   };
 
-  const handleDeleteSale = (saleId: string) => {
+  const handleDeleteSale = async (saleId: string) => {
     setState((prev) => ({
       ...prev,
       sales: prev.sales.filter((s) => s.id !== saleId),
     }));
+    await deleteSaleFromSupabase(saleId);
+
     if (activeInvoiceSale?.id === saleId) {
       setIsInvoiceModalOpen(false);
       setActiveInvoiceSale(null);
     }
   };
 
-  const handleSettleCustomerDue = (customerId: string, amount: number) => {
+  const handleSettleCustomerDue = async (customerId: string, amount: number) => {
     const customer = state.customers.find((c) => c.id === customerId);
     if (!customer) return;
 
@@ -236,24 +273,28 @@ export default function App() {
       customers: updatedCustomers,
     }));
 
+    await insertSaleToSupabase(dueSalePayload);
+
     setActiveInvoiceSale(dueSalePayload);
     setTriggerConfetti(true);
     setIsInvoiceModalOpen(true);
   };
 
   // Handlers for Expenses
-  const handleAddExpense = (expense: Expense) => {
+  const handleAddExpense = async (expense: Expense) => {
     setState((prev) => ({
       ...prev,
       expenses: [expense, ...prev.expenses],
     }));
+    await insertExpenseToSupabase(expense);
   };
 
-  const handleDeleteExpense = (id: string) => {
+  const handleDeleteExpense = async (id: string) => {
     setState((prev) => ({
       ...prev,
       expenses: prev.expenses.filter((e) => e.id !== id),
     }));
+    await deleteExpenseFromSupabase(id);
   };
 
   // Handlers for Users & Roles
@@ -279,11 +320,13 @@ export default function App() {
     }));
   };
 
-  const handleUpdateBusinessInfo = (info: BusinessInfo) => {
+  // Business Info Update (Logo Stabilizer)
+  const handleUpdateBusinessInfo = async (info: BusinessInfo) => {
     setState((prev) => ({
       ...prev,
       businessInfo: info,
     }));
+    await updateBusinessInfoInSupabase(info);
   };
 
   const handleUpdateUserCredentials = (userId: string, newUsername: string, newPassword?: string) => {
