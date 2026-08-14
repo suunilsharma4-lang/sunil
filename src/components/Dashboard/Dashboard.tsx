@@ -140,18 +140,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <p className="text-[11px] text-slate-500 mt-1 font-medium">{todaySales.length} Transactions today</p>
         </div>
 
-        {/* Today's Purchase */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Today's Purchase</span>
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-              <ShoppingBag className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-xl font-black text-slate-900">{formatCurrency(todayPurchaseTotal)}</p>
-          <p className="text-[11px] text-slate-500 mt-1 font-medium">{todayPurchases.length} Buying receipts</p>
-        </div>
-
         {/* Total Revenue */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between text-slate-500 mb-2">
