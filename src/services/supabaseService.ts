@@ -265,6 +265,29 @@ export async function deleteExpenseFromSupabase(id: string) {
 }
 
 // --- BUSINESS INFO ---
+export async function fetchBusinessInfoFromSupabase(): Promise<BusinessInfo | null> {
+  const { data, error } = await supabase
+    .from('business_info')
+    .select('*')
+    .eq('id', 'primary')
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    name: data.name,
+    location: data.location,
+    founder: data.founder,
+    contact: data.contact,
+    email: data.email,
+    logoUrl: data.logo_url,
+    showLogoOnInvoice: data.show_logo_on_invoice,
+    showLogoInHeader: data.show_logo_in_header,
+    panVatNo: data.pan_vat_no,
+    invoiceNotice: data.invoice_notice,
+  };
+}
+
 export async function updateBusinessInfoInSupabase(info: BusinessInfo) {
   return await supabase.from('business_info').upsert({
     id: 'primary',
