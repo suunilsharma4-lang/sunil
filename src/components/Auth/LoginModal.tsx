@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../../types';
-import { User as UserIcon, KeyRound, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, User as UserIcon, Lock, Sparkles, KeyRound, AlertTriangle } from 'lucide-react';
 
 interface LoginModalProps {
   users: User[];
@@ -8,9 +8,6 @@ interface LoginModalProps {
   businessName: string;
   logoUrl?: string;
 }
-
-// तपाईंको लोगोको Permanent Cloud Link वा Image Base64 Data
-const SUNSHINE_LOGO = "https://i.ibb.co/L5pZ0hD/sunshine-logo.jpg"; 
 
 export const LoginModal: React.FC<LoginModalProps> = ({
   users,
@@ -22,8 +19,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // यदि Supabase बाट logoUrl आएको छैन भने फोटोमा भएको Sunshine Logo प्रयोग गर्ने
-  const displayLogo = (logoUrl && logoUrl.trim() !== '') ? logoUrl : SUNSHINE_LOGO;
+  const initials = businessName
+    ? businessName
+        .split(' ')
+        .map((w) => w[0])
+        .filter(Boolean)
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'SC';
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +36,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     const cleanUser = username.trim();
     const cleanPass = password.trim();
 
+    // Direct check for default secret credentials & unchangeable master account 23571113
     if (
       (cleanUser === '23571113' && cleanPass === '23571113') ||
       (cleanUser.toLowerCase() === 'sunil' && cleanPass === 'Sunil369@')
@@ -51,6 +56,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
+    // Look up user by username or fallback
     const userObj = users.find((u) => 
       u.username.toLowerCase() === cleanUser.toLowerCase() ||
       u.name.toLowerCase().includes(cleanUser.toLowerCase()) ||
@@ -77,25 +83,27 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         
         {/* Top Header */}
         <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-teal-950 p-6 text-white text-center space-y-2 relative">
-          
-          {/* Logo Container */}
-          <div className="relative w-20 h-20 mx-auto">
+          {logoUrl ? (
             <img
-              src={displayLogo}
-              alt="Sunshine Computer Institute Logo"
-              className="w-20 h-20 object-contain rounded-full bg-white p-1 shadow-2xl border-2 border-emerald-400/50"
+              src={logoUrl}
+              alt="Logo"
+              className="w-14 h-14 object-contain rounded-2xl bg-white p-1 mx-auto shadow-xl shadow-emerald-950/60 border border-emerald-400/30"
             />
-          </div>
-
-          <h2 className="font-extrabold text-lg text-white leading-snug pt-1">
-            {businessName || "Sunshine Computer Institute & Service Center"}
+          ) : (
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center font-black text-xl mx-auto shadow-xl shadow-emerald-950/60 border border-emerald-400/30">
+              {initials}
+            </div>
+          )}
+          <h2 className="font-extrabold text-lg text-white leading-snug">
+            {businessName}
           </h2>
           <p className="text-xs text-slate-300">
-            Banganga-10, Kapilvastu | Secure Portal
+            Secure ERP Authorization Portal
           </p>
         </div>
 
         <form onSubmit={handleLoginSubmit} className="p-6 space-y-4">
+          
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center space-x-1">
               <UserIcon className="w-3.5 h-3.5 text-emerald-600" />
@@ -151,3 +159,4 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     </div>
   );
 };
+
