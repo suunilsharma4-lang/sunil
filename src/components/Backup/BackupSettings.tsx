@@ -363,11 +363,6 @@ export const BackupSettings: React.FC<BackupSettingsProps> = ({
             </div>
           </div>
 
-          <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 flex items-center space-x-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Master System Login (<strong className="text-slate-900 font-extrabold">23571113 / 23571113</strong>) is permanent & unchangeable.</span>
-          </div>
-
           <form onSubmit={handleUpdateCredentials} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
