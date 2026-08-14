@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
     : [];
 
   return (
-    <header className="sticky top-0 z-30 bg-slate-900 border-b border-slate-800 text-white shadow-md print:hidden">
+<header className="sticky top-0 z-30 custom-header border-b border-slate-800 text-white shadow-md print:hidden">
       <div className="px-4 sm:px-6 py-3 flex items-center justify-between">
         
         {/* Left Title / Branding */}
