@@ -1,7 +1,16 @@
 @import "tailwindcss";
 
+/* --- 1. Windows 7 र पुराना Browser का लागि Global Fallback Background --- */
+html, body, #root {
+  background-color: #0d1520 !important;
+  color: #ffffff;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* --- 2. Print Styles for Half-A4 (A5) Invoice --- */
 @layer utilities {
-  /* Print Styles for Half-A4 (A5) Invoice */
   @media print {
     body * {
       visibility: hidden !important;
@@ -20,7 +29,7 @@
       border: 1px solid #000 !important;
       margin: 0 !important;
       padding: 12mm 10mm !important;
-      background: green !important;
+      background: white !important; /* Print गर्दा सेतो कागजमा स्पष्ट आउनका लागि */
       color: black !important;
       page-break-after: always;
     }
@@ -33,8 +42,32 @@
     }
   }
 }
-/* Header Background and Text Fix */
+
+/* --- 3. Header Background and Text Fix --- */
 .custom-header {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+/* --- 4. Welcome Banner Fix --- */
+.custom-welcome-banner {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+.custom-welcome-banner h1, 
+.custom-welcome-banner p {
+  color: #ffffff !important;
+}
+
+/* --- 5. Net Profit Card Fix --- */
+.custom-net-profit {
+  background-color: #064e3b !important;
+  color: #ffffff !important;
+}
+.custom-net-profit p, 
+.custom-net-profit span {
+  color: #ffffff !important;
+}.custom-header {
   background-color: #0f172a !important;
   color: #ffffff !important;
 }
