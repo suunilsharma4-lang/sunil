@@ -1,60 +1,157 @@
 import { supabase } from '../lib/supabase';
-import { AppState, BusinessInfo, Customer, Expense, Product, Purchase, Sale, Supplier, User } from '../types';
+import { AppState, BusinessInfo } from '../types';
 
-// ==========================================
-// 1. GLOBAL STATE SUPABASE SYNC FUNCTIONS
-// ==========================================
+const APP_STATE_ID = 'sunshine_erp_global';
 
-export async function fetchFullStateFromSupabase(): Promise<AppState | null> {
+// 1. Supabase मा Product/Sale/Customer/Expense सिधै Table मा सेभ गर्ने मुख्य फन्क्सन
+export async function syncStateToSupabase(state: AppState) {
   try {
-    const { data, error } = await supabase
+    // A. Backup full state to app_state table as JSON
+    await supabase
       .from('app_state')
-      .select('state')
-      .eq('id', 'sunshine_erp_global')
-      .maybeSingle();
+      .upsert({ id: APP_STATE_ID, state, updated_at: new Date().toISOString() });
 
-    if (error) {
-      console.warn('Supabase app_state fetch warning:', error.message);
-      return null;
+    // B. Save Products directly to 'products' table
+    if (state.products && state.products.length > 0) {
+      const formattedProducts = state.products.map((p) => ({
+        id: p.id,
+        sku: p.sku || '',
+        name: p.name,
+        category: p.category || '',
+        brand: p.brand || '',
+        purchase_price: p.purchasePrice || 0,
+        selling_price: p.sellingPrice || 0,
+        stock_quantity: p.stockQuantity || 0,
+        min_stock_alert: p.minStockAlert || 0,
+        unit: p.unit || 'Pcs',
+        supplier_id: p.supplierId || '',
+        supplier_name: p.supplierName || '',
+        image_url: p.imageUrl || '',
+        date_added: p.dateAdded || new Date().toISOString(),
+        description: p.description || '',
+        // CamelCase backup fields
+        purchasePrice: p.purchasePrice || 0,
+        sellingPrice: p.sellingPrice || 0,
+        stockQuantity: p.stockQuantity || 0,
+        minStockAlert: p.minStockAlert || 0,
+      }));
+
+      const { error: prodError } = await supabase.from('products').upsert(formattedProducts);
+      if (prodError) console.error('Error saving products table:', prodError);
     }
 
-    if (data && data.state) {
-      return data.state as AppState;
+    // C. Save Customers
+    if (state.customers && state.customers.length > 0) {
+      const formattedCustomers = state.customers.map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone || '',
+        address: c.address || '',
+        customer_type: c.customerType || 'Retail',
+        total_purchases: c.totalPurchases || 0,
+        total_paid: c.totalPaid || 0,
+        total_due: c.totalDue || 0,
+        created_at: c.createdAt || new Date().toISOString(),
+      }));
+      await supabase.from('customers').upsert(formattedCustomers);
     }
-  } catch (err) {
-    console.error('Failed to fetch state from Supabase:', err);
-  }
-  return null;
-}
 
-export async function syncStateToSupabase(state: AppState): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('app_state')
-      .upsert({
-        id: 'sunshine_erp_global',
-        state,
-        updated_at: new Date().toISOString(),
+    // D. Save Business Info
+    if (state.businessInfo) {
+      await supabase.from('business_info').upsert({
+        id: 'primary',
+        name: state.businessInfo.name,
+        location: state.businessInfo.location,
+        founder: state.businessInfo.founder,
+        contact: state.businessInfo.contact,
+        email: state.businessInfo.email,
+        logo_url: state.businessInfo.logoUrl,
+        show_logo_on_invoice: state.businessInfo.showLogoOnInvoice,
+        show_logo_in_header: state.businessInfo.showLogoInHeader,
+        pan_vat_no: state.businessInfo.panVatNo,
+        invoice_notice: state.businessInfo.invoiceNotice,
       });
-
-    if (error) {
-      console.warn('Supabase app_state upsert warning:', error.message);
     }
   } catch (err) {
     console.error('Failed to sync state to Supabase:', err);
   }
 }
 
-// Subscribe to real-time changes on Supabase app_state table
-export function subscribeToSupabaseStateChanges(onRemoteStateChange: (newState: AppState) => void) {
+// 2. App खोल्दा डेटा तान्ने फन्क्सन
+export async function fetchFullStateFromSupabase(): Promise<Partial<AppState> | null> {
+  try {
+    // पहिले JSON app_state बाट तान्ने
+    const { data: stateData } = await supabase
+      .from('app_state')
+      .select('state')
+      .eq('id', APP_STATE_ID)
+      .single();
+
+    let loadedState: Partial<AppState> = stateData?.state || {};
+
+    // यदि Products Table मा छुट्टै डेटा छ भने त्यसलाई पनि तान्ने
+    const { data: prodData } = await supabase.from('products').select('*');
+    if (prodData && prodData.length > 0) {
+      const mappedProducts = prodData.map((p: any) => ({
+        id: p.id,
+        sku: p.sku || '',
+        name: p.name,
+        category: p.category || '',
+        brand: p.brand || '',
+        purchasePrice: Number(p.purchase_price || p.purchasePrice || 0),
+        sellingPrice: Number(p.selling_price || p.sellingPrice || 0),
+        stockQuantity: Number(p.stock_quantity || p.stockQuantity || 0),
+        minStockAlert: Number(p.min_stock_alert || p.minStockAlert || 0),
+        unit: p.unit || 'Pcs',
+        supplierId: p.supplier_id || p.supplierId || '',
+        supplierName: p.supplier_name || p.supplierName || '',
+        imageUrl: p.image_url || p.imageUrl || '',
+        dateAdded: p.date_added || p.dateAdded || new Date().toISOString(),
+        description: p.description || '',
+      }));
+
+      loadedState.products = mappedProducts;
+    }
+
+    return loadedState;
+  } catch (err) {
+    console.error('Error fetching state from Supabase:', err);
+    return null;
+  }
+}
+
+// 3. Business Info तान्ने फन्क्सन
+export async function fetchBusinessInfoFromSupabase(): Promise<BusinessInfo | null> {
+  try {
+    const { data } = await supabase.from('business_info').select('*').eq('id', 'primary').single();
+    if (!data) return null;
+    return {
+      name: data.name || '',
+      location: data.location || '',
+      founder: data.founder || '',
+      contact: data.contact || '',
+      email: data.email || '',
+      logoUrl: data.logo_url || data.logoUrl || '',
+      showLogoOnInvoice: data.show_logo_on_invoice ?? true,
+      showLogoInHeader: data.show_logo_in_header ?? true,
+      panVatNo: data.pan_vat_no || '',
+      invoiceNotice: data.invoice_notice || '',
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
+// 4. Real-time Subscription (अरु Device मा instantly अपडेट हुन)
+export function subscribeToSupabaseStateChanges(callback: (newState: Partial<AppState>) => void) {
   const channel = supabase
     .channel('app_state_realtime')
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'app_state', filter: 'id=eq.sunshine_erp_global' },
+      { event: '*', schema: 'public', table: 'app_state', filter: `id=eq.${APP_STATE_ID}` },
       (payload) => {
-        if (payload.new && payload.new.state) {
-          onRemoteStateChange(payload.new.state as AppState);
+        if (payload.new && (payload.new as any).state) {
+          callback((payload.new as any).state);
         }
       }
     )
@@ -63,220 +160,4 @@ export function subscribeToSupabaseStateChanges(onRemoteStateChange: (newState: 
   return () => {
     supabase.removeChannel(channel);
   };
-}
-
-// ==========================================
-// 2. INDIVIDUAL ENTITY CRUD DATA OPERATIONS
-// ==========================================
-
-// --- PRODUCTS ---
-export async function fetchProductsFromSupabase(): Promise<Product[]> {
-  const { data, error } = await supabase.from('products').select('*');
-  if (error || !data) return [];
-  return data.map((item) => ({
-    id: item.id,
-    sku: item.sku,
-    name: item.name,
-    category: item.category,
-    brand: item.brand,
-    purchasePrice: Number(item.purchase_price || 0),
-    sellingPrice: Number(item.selling_price || 0),
-    stockQuantity: Number(item.stock_quantity || 0),
-    minStockAlert: Number(item.min_stock_alert || 0),
-    unit: item.unit,
-    supplierId: item.supplier_id,
-    supplierName: item.supplier_name,
-    imageUrl: item.image_url,
-    dateAdded: item.date_added,
-    description: item.description,
-  }));
-}
-
-export async function insertProductToSupabase(product: Product) {
-  return await supabase.from('products').insert([{
-    id: product.id,
-    sku: product.sku,
-    name: product.name,
-    category: product.category,
-    brand: product.brand,
-    purchase_price: product.purchasePrice,
-    selling_price: product.sellingPrice,
-    stock_quantity: product.stockQuantity,
-    min_stock_alert: product.minStockAlert,
-    unit: product.unit,
-    supplier_id: product.supplierId,
-    supplier_name: product.supplierName,
-    image_url: product.imageUrl,
-    date_added: product.dateAdded,
-    description: product.description,
-  }]);
-}
-
-export async function updateProductInSupabase(product: Product) {
-  return await supabase.from('products').update({
-    sku: product.sku,
-    name: product.name,
-    category: product.category,
-    brand: product.brand,
-    purchase_price: product.purchasePrice,
-    selling_price: product.sellingPrice,
-    stock_quantity: product.stockQuantity,
-    min_stock_alert: product.minStockAlert,
-    unit: product.unit,
-    supplier_id: product.supplierId,
-    supplier_name: product.supplierName,
-    image_url: product.imageUrl,
-    date_added: product.dateAdded,
-    description: product.description,
-  }).eq('id', product.id);
-}
-
-export async function deleteProductFromSupabase(id: string) {
-  return await supabase.from('products').delete().eq('id', id);
-}
-
-// --- CUSTOMERS ---
-export async function fetchCustomersFromSupabase(): Promise<Customer[]> {
-  const { data, error } = await supabase.from('customers').select('*');
-  if (error || !data) return [];
-  return data.map((c) => ({
-    id: c.id,
-    name: c.name,
-    phone: c.phone,
-    address: c.address,
-    customerType: c.customer_type,
-    totalPurchases: Number(c.total_purchases || 0),
-    totalPaid: Number(c.total_paid || 0),
-    totalDue: Number(c.total_due || 0),
-    createdAt: c.created_at,
-  }));
-}
-
-export async function insertCustomerToSupabase(customer: Customer) {
-  return await supabase.from('customers').insert([{
-    id: customer.id,
-    name: customer.name,
-    phone: customer.phone,
-    address: customer.address,
-    customer_type: customer.customerType,
-    total_purchases: customer.totalPurchases,
-    total_paid: customer.totalPaid,
-    total_due: customer.totalDue,
-    created_at: customer.createdAt || new Date().toISOString(),
-  }]);
-}
-
-export async function deleteCustomerFromSupabase(id: string) {
-  return await supabase.from('customers').delete().eq('id', id);
-}
-
-// --- SALES ---
-export async function fetchSalesFromSupabase(): Promise<Sale[]> {
-  const { data, error } = await supabase.from('sales').select('*').order('date', { ascending: false });
-  if (error || !data) return [];
-  return data.map((s) => ({
-    id: s.id,
-    invoiceNo: s.invoice_no,
-    customerId: s.customer_id,
-    customerName: s.customer_name,
-    customerPhone: s.customer_phone,
-    saleType: s.sale_type,
-    date: s.date,
-    items: s.items || [],
-    subtotal: Number(s.subtotal || 0),
-    discountAmount: Number(s.discount_amount || 0),
-    discountPercent: Number(s.discount_percent || 0),
-    taxPercent: Number(s.tax_percent || 0),
-    taxAmount: Number(s.tax_amount || 0),
-    grandTotal: Number(s.grand_total || 0),
-    paidAmount: Number(s.paid_amount || 0),
-    dueAmount: Number(s.due_amount || 0),
-    paymentStatus: s.payment_status,
-    paymentMethod: s.payment_method,
-    notes: s.notes,
-    createdBy: s.created_by,
-    previousDueAdded: Number(s.previous_due_added || 0),
-    mergedIntoInvoiceNo: s.merged_into_invoice_no,
-  }));
-}
-
-export async function insertSaleToSupabase(sale: Sale) {
-  return await supabase.from('sales').insert([{
-    id: sale.id,
-    invoice_no: sale.invoiceNo,
-    customer_id: sale.customerId,
-    customer_name: sale.customerName,
-    customer_phone: sale.customerPhone,
-    sale_type: sale.saleType,
-    date: sale.date,
-    items: sale.items,
-    subtotal: sale.subtotal,
-    discount_amount: sale.discountAmount,
-    discount_percent: sale.discountPercent,
-    tax_percent: sale.taxPercent,
-    tax_amount: sale.taxAmount,
-    grand_total: sale.grandTotal,
-    paid_amount: sale.paidAmount,
-    due_amount: sale.dueAmount,
-    payment_status: sale.paymentStatus,
-    payment_method: sale.paymentMethod,
-    notes: sale.notes,
-    created_by: sale.createdBy,
-    previous_due_added: sale.previousDueAdded,
-    merged_into_invoice_no: sale.mergedIntoInvoiceNo,
-  }]);
-}
-
-export async function deleteSaleFromSupabase(id: string) {
-  return await supabase.from('sales').delete().eq('id', id);
-}
-
-// --- EXPENSES ---
-export async function fetchExpensesFromSupabase(): Promise<Expense[]> {
-  const { data, error } = await supabase.from('expenses').select('*').order('date', { ascending: false });
-  if (error || !data) return [];
-  return data.map((e) => ({
-    id: e.id,
-    title: e.title,
-    category: e.category,
-    amount: Number(e.amount || 0),
-    date: e.date,
-    description: e.description,
-    paymentMethod: e.payment_method,
-    referenceNo: e.reference_no,
-  }));
-}
-
-export async function insertExpenseToSupabase(expense: Expense) {
-  return await supabase.from('expenses').insert([{
-    id: expense.id,
-    title: expense.title,
-    category: expense.category,
-    amount: expense.amount,
-    date: expense.date,
-    description: expense.description,
-    payment_method: expense.paymentMethod,
-    reference_no: expense.referenceNo,
-  }]);
-}
-
-export async function deleteExpenseFromSupabase(id: string) {
-  return await supabase.from('expenses').delete().eq('id', id);
-}
-
-// --- BUSINESS INFO ---
-export async function updateBusinessInfoInSupabase(info: BusinessInfo) {
-  return await supabase.from('business_info').upsert({
-    id: 'primary',
-    name: info.name,
-    location: info.location,
-    founder: info.founder,
-    contact: info.contact,
-    email: info.email,
-    logo_url: info.logoUrl,
-    show_logo_on_invoice: info.showLogoOnInvoice,
-    show_logo_in_header: info.showLogoInHeader,
-    pan_vat_no: info.panVatNo,
-    invoice_notice: info.invoiceNotice,
-  });
 }
