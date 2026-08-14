@@ -29,16 +29,27 @@ export default function App() {
   // Auth State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Load initial state from Supabase on startup
+  // 🔴 NEW: Data overwrite हुनबाट जोगाउने Guard Flag
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // 1. Load initial state from Supabase on startup
   useEffect(() => {
     let isMounted = true;
     async function loadSupabaseData() {
-      const remoteState = await fetchFullStateFromSupabase();
-      if (remoteState && isMounted) {
-        setState((prev) => ({
-          ...prev,
-          ...remoteState,
-        }));
+      try {
+        const remoteState = await fetchFullStateFromSupabase();
+        if (remoteState && isMounted) {
+          setState((prev) => ({
+            ...prev,
+            ...remoteState,
+          }));
+        }
+      } catch (err) {
+        console.error("Error loading initial data from Supabase:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoaded(true); // Data तानेर सकिएपछि मात्र True हुन्छ
+        }
       }
     }
     loadSupabaseData();
@@ -59,11 +70,13 @@ export default function App() {
     };
   }, []);
 
-  // Sync state to local storage & Supabase on changes
+  // 2. Sync state to local storage & Supabase ONLY AFTER initial load is complete
   useEffect(() => {
+    if (!isLoaded) return; // Supabase बाट डाटा तानिइनसक्दै Save गरेर Overwrite हुन नदिने
+
     saveAppState(state);
     syncStateToSupabase(state);
-  }, [state]);
+  }, [state, isLoaded]);
 
   // Handlers for Products
   const handleAddProduct = (product: Product) => {
@@ -446,4 +459,3 @@ export default function App() {
     </div>
   );
 }
-
