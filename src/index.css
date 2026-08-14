@@ -33,3 +33,28 @@
     }
   }
 }
+/* Header Background and Text Fix */
+.custom-header {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+/* Welcome Banner Fix */
+.custom-welcome-banner {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+.custom-welcome-banner h1, 
+.custom-welcome-banner p {
+  color: #ffffff !important;
+}
+
+/* Net Profit Card Fix */
+.custom-net-profit {
+  background-color: #064e3b !important;
+  color: #ffffff !important;
+}
+.custom-net-profit p, 
+.custom-net-profit span {
+  color: #ffffff !important;
+}
