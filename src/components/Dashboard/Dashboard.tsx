@@ -228,14 +228,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('purchases')}
-              className="p-3 bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200 text-indigo-800 rounded-xl font-bold text-xs flex flex-col items-center justify-center space-y-1.5 transition-all cursor-pointer group"
-            >
-              <ShoppingBag className="w-5 h-5 text-indigo-600 group-hover:scale-110 transition-transform" />
-              <span>New Purchase</span>
-            </button>
-
-            <button
               onClick={() => setActiveTab('expenses')}
               className="p-3 bg-amber-50 hover:bg-amber-100/80 border border-amber-200 text-amber-800 rounded-xl font-bold text-xs flex flex-col items-center justify-center space-y-1.5 transition-all cursor-pointer group"
             >
