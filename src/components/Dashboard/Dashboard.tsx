@@ -99,7 +99,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     <div className="p-4 sm:p-6 space-y-6">
       
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-teal-950 p-6 rounded-2xl border border-slate-700/60 shadow-lg text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="custom-welcome-banner p-6 rounded-2xl border border-slate-700/60 shadow-lg text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
             <Sparkles className="w-4 h-4" />
@@ -166,12 +166,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* Net Profit */}
         <div
-          className={`p-4 rounded-2xl border shadow-xs hover:shadow-md transition-shadow ${
-            netProfit >= 0
-              ? 'bg-gradient-to-br from-emerald-900 to-slate-900 text-white border-emerald-700'
-              : 'bg-gradient-to-br from-rose-900 to-slate-900 text-white border-rose-700'
-          }`}
-        >
+  className={`p-4 rounded-2xl border shadow-xs hover:shadow-md transition-shadow custom-net-profit ${
+    netProfit >= 0 ? 'border-emerald-700' : 'border-rose-700'
+  }`}
+>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
               Net Profit
